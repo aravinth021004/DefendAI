@@ -1,7 +1,13 @@
 import React from "react";
 import { AlertTriangle, CheckCircle, XCircle, Info, Clock } from "lucide-react";
 
-const ResultCard = ({ result, type = "image", fileName, processingTime }) => {
+const ResultCard = ({
+  result,
+  type = "image",
+  fileName,
+  processingTime,
+  modelUsed,
+}) => {
   if (!result) return null;
 
   const getStatusIcon = () => {
@@ -71,6 +77,11 @@ const ResultCard = ({ result, type = "image", fileName, processingTime }) => {
             </h3>
             <p className="text-sm text-gray-600">
               {type === "video" ? "Video Analysis" : "Image Analysis"}
+              {(modelUsed || result.model_type) && (
+                <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">
+                  {modelUsed || result.model_type || "Unknown Model"}
+                </span>
+              )}
             </p>
           </div>
         </div>

@@ -20,14 +20,46 @@ const Detection = () => {
   const [results, setResults] = useState([]);
   const [mode, setMode] = useState("single"); // 'single' or 'batch'
   const [frameInterval, setFrameInterval] = useState(30);
+  const [selectedModel, setSelectedModel] = useState("xception");
+  const [models, setModels] = useState([]);
   const [modelInfo, setModelInfo] = useState(null);
   const [modelLoading, setModelLoading] = useState(true);
 
-  // Fetch model info on component mount
+  // Fetch models on component mount
+  useEffect(() => {
+    const fetchModels = async () => {
+      try {
+        // Fetch available models
+        const modelsResponse = await apiService.getAvailableModels();
+        if (modelsResponse.success) {
+          setModels(modelsResponse.models);
+
+          // Set default model to first available one
+          const availableModel = modelsResponse.models.find((m) => m.available);
+          if (availableModel) {
+            setSelectedModel(availableModel.id);
+          }
+        } else {
+          toast.error("Failed to load available models");
+        }
+      } catch (error) {
+        console.error("Error fetching models:", error);
+        toast.error("Unable to connect to the backend service");
+      } finally {
+        setModelLoading(false);
+      }
+    };
+
+    fetchModels();
+  }, []);
+
+  // Fetch model info when selected model changes
   useEffect(() => {
     const fetchModelInfo = async () => {
+      if (!selectedModel) return;
+
       try {
-        const response = await apiService.getModelInfo();
+        const response = await apiService.getModelInfo(selectedModel);
         if (response.success) {
           setModelInfo(response.model_info);
         } else {
@@ -36,13 +68,11 @@ const Detection = () => {
       } catch (error) {
         console.error("Error fetching model info:", error);
         toast.error("Unable to connect to the backend service");
-      } finally {
-        setModelLoading(false);
       }
     };
 
     fetchModelInfo();
-  }, []);
+  }, [selectedModel]);
 
   const handleFilesSelected = (files) => {
     setSelectedFiles(files);
@@ -65,10 +95,21 @@ const Detection = () => {
           id: "batch-processing",
         });
 
-        const response = await apiService.batchDetect(selectedFiles);
+        const response = await apiService.batchDetect(
+          selectedFiles,
+          selectedModel
+        );
 
         if (response.success) {
-          setResults(response.results);
+          // Map batch results to match our expected format
+          const mappedResults = response.results.map((result) => ({
+            fileName: result.filename,
+            fileType: result.file_type,
+            result: result.result,
+            processingTime: result.processing_time,
+            modelUsed: result.model_used || selectedModel,
+          }));
+          setResults(mappedResults);
           toast.success(
             `Processed ${response.processed_files} files successfully`,
             { id: "batch-processing" }
@@ -91,9 +132,13 @@ const Detection = () => {
           try {
             let response;
             if (isVideo) {
-              response = await apiService.detectVideo(file, frameInterval);
+              response = await apiService.detectVideo(
+                file,
+                frameInterval,
+                selectedModel
+              );
             } else {
-              response = await apiService.detectImage(file);
+              response = await apiService.detectImage(file, selectedModel);
             }
 
             if (response.success) {
@@ -102,6 +147,7 @@ const Detection = () => {
                 fileType: isVideo ? "video" : "image",
                 result: response.result,
                 processingTime: response.processing_time,
+                modelUsed: response.model_used || selectedModel,
               });
               toast.success(`${file.name} processed`, {
                 id: `processing-${i}`,
@@ -112,6 +158,7 @@ const Detection = () => {
                 fileType: isVideo ? "video" : "image",
                 result: { error: response.error || "Processing failed" },
                 processingTime: 0,
+                modelUsed: selectedModel,
               });
               toast.error(`Failed to process ${file.name}`, {
                 id: `processing-${i}`,
@@ -123,6 +170,7 @@ const Detection = () => {
               fileType: file.type.startsWith("video/") ? "video" : "image",
               result: { error: error.message || "Processing failed" },
               processingTime: 0,
+              modelUsed: selectedModel,
             });
             toast.error(`Error processing ${file.name}`, {
               id: `processing-${i}`,
@@ -160,7 +208,8 @@ const Detection = () => {
           </h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
             Upload images or videos to analyze them for deepfake manipulation
-            using our advanced EfficientNet-B0 deep learning model.
+            using our advanced AI models including Xception and Vision
+            Transformer.
           </p>
         </motion.div>
 
@@ -207,6 +256,52 @@ const Detection = () => {
                 </label>
               </div>
 
+              {/* Model Selection */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  AI Model Selection
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {models.map((model) => (
+                    <label
+                      key={model.id}
+                      className={`flex items-center space-x-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                        selectedModel === model.id
+                          ? "border-primary-500 bg-primary-50"
+                          : "border-gray-300 hover:border-gray-400"
+                      } ${
+                        !model.available ? "opacity-50 cursor-not-allowed" : ""
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="model"
+                        value={model.id}
+                        checked={selectedModel === model.id}
+                        onChange={(e) => setSelectedModel(e.target.value)}
+                        disabled={!model.available}
+                        className="text-primary-600"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-gray-900">
+                            {model.name}
+                          </span>
+                          {model.available ? (
+                            <CheckCircle className="w-4 h-4 text-green-500" />
+                          ) : (
+                            <XCircle className="w-4 h-4 text-red-500" />
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-600 mt-1">
+                          {model.description}
+                        </p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
               {/* Frame Interval Setting for Videos */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -226,6 +321,66 @@ const Detection = () => {
                   Lower values = more thorough analysis but slower processing
                 </p>
               </div>
+            </motion.div>
+
+            {/* Model Selection */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 0.15 }}
+              className="card"
+            >
+              <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                <Zap className="w-5 h-5 mr-2" />
+                AI Model Selection
+              </h2>
+
+              <div className="space-y-3">
+                {models.map((model) => (
+                  <label
+                    key={model.id}
+                    className={`flex items-start space-x-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                      selectedModel === model.id
+                        ? "border-primary-500 bg-primary-50"
+                        : "border-gray-200 hover:border-gray-300"
+                    } ${
+                      !model.available ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="model"
+                      value={model.id}
+                      checked={selectedModel === model.id}
+                      onChange={(e) => setSelectedModel(e.target.value)}
+                      disabled={!model.available}
+                      className="mt-1 text-primary-600"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2">
+                        <span className="font-medium text-gray-900">
+                          {model.name}
+                        </span>
+                        {!model.available && (
+                          <span className="text-xs px-2 py-1 bg-red-100 text-red-600 rounded">
+                            Not Available
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {model.description}
+                      </p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+
+              {modelLoading && (
+                <div className="flex items-center justify-center py-4">
+                  <div className="w-6 h-6 border-2 border-primary-600 border-t-transparent rounded-full animate-spin" />
+                  <span className="ml-2 text-gray-600">Loading models...</span>
+                </div>
+              )}
             </motion.div>
 
             {/* File Upload */}
@@ -410,6 +565,7 @@ const Detection = () => {
                   type={result.fileType}
                   fileName={result.fileName}
                   processingTime={result.processingTime}
+                  modelUsed={result.modelUsed}
                 />
               ))}
             </div>

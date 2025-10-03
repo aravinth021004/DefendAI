@@ -15,7 +15,7 @@ const api = axios.create({
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       console.log(
         `Making ${config.method?.toUpperCase()} request to: ${config.url}`
       );
@@ -46,16 +46,23 @@ export const apiService = {
     return response.data;
   },
 
+  // Get available models
+  getAvailableModels: async () => {
+    const response = await api.get("/models");
+    return response.data;
+  },
+
   // Get model information
-  getModelInfo: async () => {
-    const response = await api.get("/model-info");
+  getModelInfo: async (modelType = "xception") => {
+    const response = await api.get(`/model-info?model=${modelType}`);
     return response.data;
   },
 
   // Detect deepfake in image
-  detectImage: async (file) => {
+  detectImage: async (file, modelType = "xception") => {
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("model", modelType);
 
     const response = await api.post("/detect-image", formData, {
       headers: {
@@ -66,10 +73,11 @@ export const apiService = {
   },
 
   // Detect deepfake in video
-  detectVideo: async (file, frameInterval = 30) => {
+  detectVideo: async (file, frameInterval = 30, modelType = "xception") => {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("frame_interval", frameInterval.toString());
+    formData.append("model", modelType);
 
     const response = await api.post("/detect-video", formData, {
       headers: {
@@ -80,11 +88,12 @@ export const apiService = {
   },
 
   // Batch detection
-  batchDetect: async (files) => {
+  batchDetect: async (files, modelType = "xception") => {
     const formData = new FormData();
     files.forEach((file) => {
       formData.append("files", file);
     });
+    formData.append("model", modelType);
 
     const response = await api.post("/batch-detect", formData, {
       headers: {
