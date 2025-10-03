@@ -15,7 +15,7 @@ const About = () => {
   const objectives = [
     "Study the evolution and impact of deepfake technology",
     "Collect and preprocess datasets containing real and fake media",
-    "Design a hybrid model combining CNNs and Transformers",
+    "Design an advanced EfficientNet-B0 model for deepfake detection",
     "Evaluate the model using accuracy, precision, recall, F1-score, and ROC-AUC",
     "Implement a web interface for real-time deepfake detection",
   ];
@@ -23,9 +23,9 @@ const About = () => {
   const features = [
     {
       icon: Brain,
-      title: "Hybrid Architecture",
+      title: "EfficientNet Architecture",
       description:
-        "Combines CNN spatial feature extraction with Transformer temporal analysis for superior accuracy and generalization across different manipulation techniques.",
+        "Utilizes the powerful EfficientNet-B0 model with transfer learning, providing excellent feature extraction and classification capabilities for deepfake detection.",
     },
     {
       icon: Zap,
@@ -37,7 +37,7 @@ const About = () => {
       icon: Target,
       title: "High Accuracy",
       description:
-        "Achieves 94.7% accuracy through advanced deep learning techniques and comprehensive training on diverse deepfake datasets.",
+        "Achieves excellent accuracy through advanced deep learning techniques and comprehensive training on diverse deepfake datasets.",
     },
     {
       icon: Shield,
@@ -80,9 +80,9 @@ const About = () => {
               About DefendAI
             </h1>
             <p className="text-xl md:text-2xl text-blue-100 max-w-4xl mx-auto">
-              An intelligent and robust deepfake detection system using hybrid
-              deep learning models to accurately identify manipulated videos and
-              images in real-time.
+              An intelligent and robust deepfake detection system using
+              EfficientNet-B0 deep learning architecture to accurately identify
+              manipulated videos and images in real-time.
             </p>
           </motion.div>
         </div>

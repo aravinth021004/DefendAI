@@ -4,7 +4,7 @@ import os
 import uuid
 from werkzeug.utils import secure_filename
 import logging
-from deepfake_detector import DeepfakeDetectionService
+from xception_deepfake_detector import XceptionDeepfakeDetector
 import time
 from datetime import datetime
 
@@ -24,8 +24,8 @@ app.config['ALLOWED_VIDEO_EXTENSIONS'] = {'mp4', 'avi', 'mov', 'wmv', 'flv', 'we
 # Create upload directory
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# Initialize deepfake detection service
-detector = DeepfakeDetectionService(model_path='../models/hybrid_deepfake_model.pth')
+# Initialize Xception-based deepfake detection service
+detector = XceptionDeepfakeDetector(model_path='../models/xception_deepfake_image.h5')
 
 def allowed_file(filename, file_type='image'):
     """Check if file extension is allowed"""

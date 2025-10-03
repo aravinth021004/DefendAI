@@ -88,6 +88,14 @@ const ResultCard = ({ result, type = "image", fileName, processingTime }) => {
           <p className="text-red-800 font-medium">Error</p>
           <p className="text-red-600 text-sm mt-1">{result.error}</p>
         </div>
+      ) : result.prediction === "No faces detected" ? (
+        <div className="bg-yellow-100 border border-yellow-200 rounded-lg p-4">
+          <p className="text-yellow-800 font-medium">No Faces Detected</p>
+          <p className="text-yellow-600 text-sm mt-1">
+            No faces were found in the uploaded media. Please ensure the
+            image/video contains visible faces for analysis.
+          </p>
+        </div>
       ) : (
         <div className="space-y-4">
           {/* Main prediction */}
@@ -237,7 +245,7 @@ const ResultCard = ({ result, type = "image", fileName, processingTime }) => {
               <p className="mt-1">
                 {type === "video"
                   ? "Video analysis examines multiple frames to detect temporal inconsistencies typical of deepfakes."
-                  : "Image analysis uses hybrid CNN-Transformer architecture to detect facial manipulation artifacts."}
+                  : "Image analysis uses EfficientNet-B0 architecture to detect facial manipulation artifacts."}
               </p>
             </div>
           </div>

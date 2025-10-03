@@ -1,6 +1,14 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Upload, Settings, Zap, FileText } from "lucide-react";
+import {
+  Upload,
+  Settings,
+  Zap,
+  FileText,
+  Info,
+  CheckCircle,
+  XCircle,
+} from "lucide-react";
 import FileUpload from "../components/FileUpload";
 import ResultCard from "../components/ResultCard";
 import { apiService } from "../services/api";
@@ -12,6 +20,29 @@ const Detection = () => {
   const [results, setResults] = useState([]);
   const [mode, setMode] = useState("single"); // 'single' or 'batch'
   const [frameInterval, setFrameInterval] = useState(30);
+  const [modelInfo, setModelInfo] = useState(null);
+  const [modelLoading, setModelLoading] = useState(true);
+
+  // Fetch model info on component mount
+  useEffect(() => {
+    const fetchModelInfo = async () => {
+      try {
+        const response = await apiService.getModelInfo();
+        if (response.success) {
+          setModelInfo(response.model_info);
+        } else {
+          toast.error("Failed to load model information");
+        }
+      } catch (error) {
+        console.error("Error fetching model info:", error);
+        toast.error("Unable to connect to the backend service");
+      } finally {
+        setModelLoading(false);
+      }
+    };
+
+    fetchModelInfo();
+  }, []);
 
   const handleFilesSelected = (files) => {
     setSelectedFiles(files);
@@ -129,7 +160,7 @@ const Detection = () => {
           </h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
             Upload images or videos to analyze them for deepfake manipulation
-            using our advanced hybrid CNN-Transformer model.
+            using our advanced EfficientNet-B0 deep learning model.
           </p>
         </motion.div>
 
@@ -258,6 +289,51 @@ const Detection = () => {
             transition={{ duration: 0.6, delay: 0.3 }}
             className="space-y-6"
           >
+            {/* Model Status */}
+            <div className="card">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                <Info className="w-5 h-5 mr-2" />
+                Model Status
+              </h3>
+
+              {modelLoading ? (
+                <div className="flex items-center space-x-2 text-sm text-gray-600">
+                  <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin" />
+                  <span>Loading model information...</span>
+                </div>
+              ) : modelInfo ? (
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center space-x-2">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    <span className="text-green-700 font-medium">
+                      Model Ready
+                    </span>
+                  </div>
+                  <div className="space-y-1 text-gray-600">
+                    <p>
+                      <strong>Type:</strong> {modelInfo.model_type}
+                    </p>
+                    <p>
+                      <strong>Device:</strong> {modelInfo.device.toUpperCase()}
+                    </p>
+                    <p>
+                      <strong>Parameters:</strong>{" "}
+                      {modelInfo.total_parameters?.toLocaleString() || "N/A"}
+                    </p>
+                    <p>
+                      <strong>Input Size:</strong> {modelInfo.input_size}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center space-x-2 text-sm">
+                  <XCircle className="w-4 h-4 text-red-500" />
+                  <span className="text-red-600">
+                    Model information unavailable
+                  </span>
+                </div>
+              )}
+            </div>
             {/* Processing Info */}
             <div className="card">
               <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
@@ -285,31 +361,16 @@ const Detection = () => {
                     <li>Videos: ~10-60 seconds (depends on length)</li>
                   </ul>
                 </div>
-              </div>
-            </div>
 
-            {/* Detection Method */}
-            <div className="card">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                Detection Method
-              </h3>
-
-              <div className="space-y-3 text-sm text-gray-600">
-                <p>Our hybrid model combines:</p>
-                <ul className="ml-4 list-disc space-y-1">
-                  <li>
-                    <strong>CNN:</strong> Spatial feature extraction
-                  </li>
-                  <li>
-                    <strong>Transformer:</strong> Temporal pattern analysis
-                  </li>
-                  <li>
-                    <strong>Face Detection:</strong> Multi-face analysis
-                  </li>
-                  <li>
-                    <strong>Confidence Scoring:</strong> Probability assessment
-                  </li>
-                </ul>
+                <div>
+                  <strong>Detection Features:</strong>
+                  <ul className="mt-1 ml-4 list-disc">
+                    <li>Automatic face detection and cropping</li>
+                    <li>Multi-face analysis support</li>
+                    <li>Confidence scoring for each prediction</li>
+                    <li>Frame-by-frame video analysis</li>
+                  </ul>
+                </div>
               </div>
             </div>
 
