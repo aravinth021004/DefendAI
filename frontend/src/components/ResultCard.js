@@ -68,11 +68,11 @@ const ResultCard = ({
 
   return (
     <div className={`border-2 rounded-xl p-6 ${getStatusColor()}`}>
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center space-x-3">
+      <div className="flex items-start justify-between mb-4 gap-4">
+        <div className="flex items-center space-x-3 min-w-0 flex-1">
           {getStatusIcon()}
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">
+          <div className="min-w-0 flex-1">
+            <h3 className="text-lg font-semibold text-gray-900 truncate">
               {fileName || "Analysis Result"}
             </h3>
             <p className="text-sm text-gray-600">
@@ -87,7 +87,7 @@ const ResultCard = ({
         </div>
 
         {processingTime && (
-          <div className="flex items-center space-x-1 text-sm text-gray-500">
+          <div className="flex items-center space-x-1 text-sm text-gray-500 flex-shrink-0">
             <Clock className="w-4 h-4" />
             <span>{processingTime}s</span>
           </div>

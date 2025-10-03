@@ -113,7 +113,7 @@ class VisionTransformerDeepfakeDetector:
                     'confidence': float(confidence),
                     'fake_probability': float(fake_prob),
                     'real_probability': float(real_prob),
-                    'prediction': 'Fake' if is_deepfake else 'Real'
+                    'prediction': 'Deepfake' if is_deepfake else 'Real'
                 }
                 
         except Exception as e:
@@ -222,7 +222,7 @@ class VisionTransformerDeepfakeDetector:
                 'confidence': float(overall_confidence),
                 'fake_probability': float(avg_fake_prob),
                 'real_probability': float(1 - avg_fake_prob),
-                'prediction': 'Fake' if is_video_deepfake else 'Real',
+                'prediction': 'Deepfake' if is_video_deepfake else 'Real',
                 'video_stats': {
                     'total_frames': total_frames,
                     'analyzed_frames': analyzed_frames,
