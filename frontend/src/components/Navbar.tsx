@@ -1,11 +1,12 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Shield, Home, Upload, BarChart3, Info } from "lucide-react";
+import { NavItem } from "../types/api";
 
-const Navbar = () => {
+const Navbar: React.FC = () => {
   const location = useLocation();
 
-  const navItems = [
+  const navItems: NavItem[] = [
     {
       name: "Home",
       path: "/",
@@ -47,7 +48,7 @@ const Navbar = () => {
           <div className="hidden md:flex items-center space-x-8">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = location.pathname === item.path;
+              const isActive: boolean = location.pathname === item.path;
 
               return (
                 <Link

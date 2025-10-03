@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
 import {
   Upload,
   Settings,
@@ -13,43 +12,93 @@ import FileUpload from "../components/FileUpload";
 import ResultCard from "../components/ResultCard";
 import { apiService } from "../services/api";
 import toast from "react-hot-toast";
+import {
+  Model,
+  ProcessedResult,
+  DetectionMode,
+  ImageDetectionResult,
+  VideoDetectionResult,
+} from "../types/api";
 
-const Detection = () => {
-  const [selectedFiles, setSelectedFiles] = useState([]);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [results, setResults] = useState([]);
-  const [mode, setMode] = useState("single"); // 'single' or 'batch'
-  const [frameInterval, setFrameInterval] = useState(30);
-  const [modelInfo, setModelInfo] = useState(null);
-  const [modelLoading, setModelLoading] = useState(true);
+interface ModelInfo {
+  model_type: string;
+  device: string;
+  total_parameters?: number;
+  input_size: string;
+}
 
-  // Fetch model info on component mount
+const Detection: React.FC = () => {
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [results, setResults] = useState<ProcessedResult[]>([]);
+  const [mode, setMode] = useState<DetectionMode>("single");
+  const [frameInterval, setFrameInterval] = useState<number>(30);
+  const [selectedModel, setSelectedModel] = useState<string>("xception");
+  const [models, setModels] = useState<Model[]>([]);
+  const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null);
+  const [modelLoading, setModelLoading] = useState<boolean>(true);
+
+  // Fetch models on component mount
   useEffect(() => {
-    const fetchModelInfo = async () => {
+    const fetchModels = async (): Promise<void> => {
       try {
-        const response = await apiService.getModelInfo();
-        if (response.success) {
-          setModelInfo(response.model_info);
+        // Fetch available models
+        const modelsResponse = await apiService.getAvailableModels();
+        // Note: We're casting since the actual API might not match our interface exactly
+        const typedResponse = modelsResponse as any;
+        if (typedResponse.success) {
+          setModels(typedResponse.models);
+
+          // Set default model to first available one
+          const availableModel = typedResponse.models.find(
+            (m: Model) => m.available
+          );
+          if (availableModel) {
+            setSelectedModel(availableModel.id);
+          }
         } else {
-          toast.error("Failed to load model information");
+          toast.error("Failed to load available models");
         }
       } catch (error) {
-        console.error("Error fetching model info:", error);
+        console.error("Error fetching models:", error);
         toast.error("Unable to connect to the backend service");
       } finally {
         setModelLoading(false);
       }
     };
 
-    fetchModelInfo();
+    fetchModels();
   }, []);
 
-  const handleFilesSelected = (files) => {
+  // Fetch model info when selected model changes
+  useEffect(() => {
+    const fetchModelInfo = async (): Promise<void> => {
+      if (!selectedModel) return;
+
+      try {
+        const response = await apiService.getModelInfo(selectedModel);
+        // Note: We're casting since the actual API might not match our interface exactly
+        const typedResponse = response as any;
+        if (typedResponse.success) {
+          setModelInfo(typedResponse.model_info);
+        } else {
+          toast.error("Failed to load model information");
+        }
+      } catch (error) {
+        console.error("Error fetching model info:", error);
+        toast.error("Unable to connect to the backend service");
+      }
+    };
+
+    fetchModelInfo();
+  }, [selectedModel]);
+
+  const handleFilesSelected = (files: File[]): void => {
     setSelectedFiles(files);
     setResults([]); // Clear previous results
   };
 
-  const processFiles = async () => {
+  const processFiles = async (): Promise<void> => {
     if (selectedFiles.length === 0) {
       toast.error("Please select files to analyze");
       return;
@@ -65,12 +114,27 @@ const Detection = () => {
           id: "batch-processing",
         });
 
-        const response = await apiService.batchDetect(selectedFiles);
+        const response = await apiService.batchDetect(
+          selectedFiles,
+          selectedModel
+        );
 
-        if (response.success) {
-          setResults(response.results);
+        // Note: We're casting since the actual API might not match our interface exactly
+        const typedResponse = response as any;
+        if (typedResponse.success) {
+          // Map batch results to match our expected format
+          const mappedResults: ProcessedResult[] = typedResponse.results.map(
+            (result: any) => ({
+              fileName: result.filename,
+              fileType: result.file_type,
+              result: result.result,
+              processingTime: result.processing_time,
+              modelUsed: result.model_used || selectedModel,
+            })
+          );
+          setResults(mappedResults);
           toast.success(
-            `Processed ${response.processed_files} files successfully`,
+            `Processed ${typedResponse.processed_files} files successfully`,
             { id: "batch-processing" }
           );
         } else {
@@ -78,7 +142,7 @@ const Detection = () => {
         }
       } else {
         // Single file processing
-        const newResults = [];
+        const newResults: ProcessedResult[] = [];
 
         for (let i = 0; i < selectedFiles.length; i++) {
           const file = selectedFiles[i];
@@ -89,19 +153,26 @@ const Detection = () => {
           });
 
           try {
-            let response;
+            let response: ImageDetectionResult | VideoDetectionResult;
             if (isVideo) {
-              response = await apiService.detectVideo(file, frameInterval);
+              response = await apiService.detectVideo(
+                file,
+                frameInterval,
+                selectedModel
+              );
             } else {
-              response = await apiService.detectImage(file);
+              response = await apiService.detectImage(file, selectedModel);
             }
 
-            if (response.success) {
+            // Note: We're casting since the actual API might not match our interface exactly
+            const typedResponse = response as any;
+            if (typedResponse.success) {
               newResults.push({
                 fileName: file.name,
                 fileType: isVideo ? "video" : "image",
-                result: response.result,
-                processingTime: response.processing_time,
+                result: typedResponse.result,
+                processingTime: typedResponse.processing_time,
+                modelUsed: typedResponse.model_used || selectedModel,
               });
               toast.success(`${file.name} processed`, {
                 id: `processing-${i}`,
@@ -110,19 +181,25 @@ const Detection = () => {
               newResults.push({
                 fileName: file.name,
                 fileType: isVideo ? "video" : "image",
-                result: { error: response.error || "Processing failed" },
+                result: {
+                  error: typedResponse.error || "Processing failed",
+                } as ImageDetectionResult,
                 processingTime: 0,
+                modelUsed: selectedModel,
               });
               toast.error(`Failed to process ${file.name}`, {
                 id: `processing-${i}`,
               });
             }
           } catch (error) {
+            const errorMessage =
+              error instanceof Error ? error.message : "Processing failed";
             newResults.push({
               fileName: file.name,
               fileType: file.type.startsWith("video/") ? "video" : "image",
-              result: { error: error.message || "Processing failed" },
+              result: { error: errorMessage } as ImageDetectionResult,
               processingTime: 0,
+              modelUsed: selectedModel,
             });
             toast.error(`Error processing ${file.name}`, {
               id: `processing-${i}`,
@@ -140,40 +217,45 @@ const Detection = () => {
     }
   };
 
-  const clearResults = () => {
+  const clearResults = (): void => {
     setResults([]);
     setSelectedFiles([]);
+  };
+
+  const handleModeChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
+    setMode(e.target.value as DetectionMode);
+  };
+
+  const handleModelChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
+    setSelectedModel(e.target.value);
+  };
+
+  const handleFrameIntervalChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ): void => {
+    setFrameInterval(parseInt(e.target.value) || 30);
   };
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-12"
-        >
+        <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
             Deepfake Detection
           </h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
             Upload images or videos to analyze them for deepfake manipulation
-            using our advanced EfficientNet-B0 deep learning model.
+            using our advanced AI models including Xception and Vision
+            Transformer.
           </p>
-        </motion.div>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Upload and Settings Panel */}
           <div className="lg:col-span-2 space-y-6">
             {/* Mode Selection */}
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-              className="card"
-            >
+            <div className="card">
               <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
                 <Settings className="w-5 h-5 mr-2" />
                 Detection Mode
@@ -186,7 +268,7 @@ const Detection = () => {
                     name="mode"
                     value="single"
                     checked={mode === "single"}
-                    onChange={(e) => setMode(e.target.value)}
+                    onChange={handleModeChange}
                     className="text-primary-600"
                   />
                   <span className="text-gray-700">
@@ -200,11 +282,57 @@ const Detection = () => {
                     name="mode"
                     value="batch"
                     checked={mode === "batch"}
-                    onChange={(e) => setMode(e.target.value)}
+                    onChange={handleModeChange}
                     className="text-primary-600"
                   />
                   <span className="text-gray-700">Batch Processing</span>
                 </label>
+              </div>
+
+              {/* Model Selection */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  AI Model Selection
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {models.map((model) => (
+                    <label
+                      key={model.id}
+                      className={`flex items-center space-x-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                        selectedModel === model.id
+                          ? "border-primary-500 bg-primary-50"
+                          : "border-gray-300 hover:border-gray-400"
+                      } ${
+                        !model.available ? "opacity-50 cursor-not-allowed" : ""
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="model"
+                        value={model.id}
+                        checked={selectedModel === model.id}
+                        onChange={handleModelChange}
+                        disabled={!model.available}
+                        className="text-primary-600"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-gray-900">
+                            {model.name}
+                          </span>
+                          {model.available ? (
+                            <CheckCircle className="w-4 h-4 text-green-500" />
+                          ) : (
+                            <XCircle className="w-4 h-4 text-red-500" />
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-600 mt-1">
+                          {model.description}
+                        </p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
               </div>
 
               {/* Frame Interval Setting for Videos */}
@@ -217,24 +345,17 @@ const Detection = () => {
                   min="1"
                   max="120"
                   value={frameInterval}
-                  onChange={(e) =>
-                    setFrameInterval(parseInt(e.target.value) || 30)
-                  }
+                  onChange={handleFrameIntervalChange}
                   className="input w-32"
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   Lower values = more thorough analysis but slower processing
                 </p>
               </div>
-            </motion.div>
+            </div>
 
             {/* File Upload */}
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="card"
-            >
+            <div className="card">
               <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
                 <Upload className="w-5 h-5 mr-2" />
                 File Upload
@@ -279,16 +400,11 @@ const Detection = () => {
                   </button>
                 </div>
               )}
-            </motion.div>
+            </div>
           </div>
 
           {/* Info Panel */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-            className="space-y-6"
-          >
+          <div className="space-y-6">
             {/* Model Status */}
             <div className="card">
               <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
@@ -334,6 +450,7 @@ const Detection = () => {
                 </div>
               )}
             </div>
+
             {/* Processing Info */}
             <div className="card">
               <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
@@ -387,17 +504,12 @@ const Detection = () => {
                 <li>• Multiple faces in one file are analyzed separately</li>
               </ul>
             </div>
-          </motion.div>
+          </div>
         </div>
 
         {/* Results Section */}
         {results.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="mt-12"
-          >
+          <div className="mt-12">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">
               Analysis Results ({results.length})
             </h2>
@@ -410,10 +522,11 @@ const Detection = () => {
                   type={result.fileType}
                   fileName={result.fileName}
                   processingTime={result.processingTime}
+                  modelUsed={result.modelUsed}
                 />
               ))}
             </div>
-          </motion.div>
+          </div>
         )}
       </div>
     </div>

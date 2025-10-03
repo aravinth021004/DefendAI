@@ -1,17 +1,18 @@
 import React, { useCallback, useState } from "react";
-import { useDropzone } from "react-dropzone";
+import { useDropzone, FileRejection, DropzoneOptions } from "react-dropzone";
 import { Upload, X, File, Image, Video } from "lucide-react";
+import { FileUploadProps } from "../types/api";
 
-const FileUpload = ({
+const FileUpload: React.FC<FileUploadProps> = ({
   onFilesSelected,
   accept,
   multiple = false,
   maxSize = 100 * 1024 * 1024,
 }) => {
-  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
   const onDrop = useCallback(
-    (acceptedFiles, rejectedFiles) => {
+    (acceptedFiles: File[], rejectedFiles: FileRejection[]) => {
       if (rejectedFiles.length > 0) {
         const errors = rejectedFiles
           .map((file) => file.errors.map((error) => error.message))
@@ -25,21 +26,23 @@ const FileUpload = ({
     [onFilesSelected]
   );
 
-  const { getRootProps, getInputProps, isDragActive, isDragReject } =
-    useDropzone({
-      onDrop,
-      accept,
-      multiple,
-      maxSize,
-    });
+  const dropzoneOptions: DropzoneOptions = {
+    onDrop,
+    accept,
+    multiple,
+    maxSize,
+  };
 
-  const removeFile = (index) => {
+  const { getRootProps, getInputProps, isDragActive, isDragReject } =
+    useDropzone(dropzoneOptions);
+
+  const removeFile = (index: number): void => {
     const newFiles = selectedFiles.filter((_, i) => i !== index);
     setSelectedFiles(newFiles);
     onFilesSelected(newFiles);
   };
 
-  const getFileIcon = (file) => {
+  const getFileIcon = (file: File): React.ReactElement => {
     if (file.type.startsWith("image/")) {
       return <Image className="w-5 h-5 text-blue-500" />;
     } else if (file.type.startsWith("video/")) {
@@ -48,7 +51,7 @@ const FileUpload = ({
     return <File className="w-5 h-5 text-gray-500" />;
   };
 
-  const formatFileSize = (bytes) => {
+  const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return "0 Bytes";
     const k = 1024;
     const sizes = ["Bytes", "KB", "MB", "GB"];

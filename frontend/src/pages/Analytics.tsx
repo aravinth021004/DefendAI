@@ -20,8 +20,11 @@ import {
   Tooltip,
   Legend,
   ArcElement,
+  ChartOptions,
+  ChartData,
 } from "chart.js";
 import { apiService } from "../services/api";
+import { AnalyticsStatistics } from "../types/api";
 
 // Register Chart.js components
 ChartJS.register(
@@ -36,16 +39,29 @@ ChartJS.register(
   ArcElement
 );
 
-const Analytics = () => {
-  const [statistics, setStatistics] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+interface StatCard {
+  title: string;
+  value: string;
+  icon: React.ComponentType<any>;
+  color: "blue" | "red" | "green" | "purple";
+  change: string;
+  changeType: "positive" | "negative" | "neutral";
+}
+
+const Analytics: React.FC = () => {
+  const [statistics, setStatistics] = useState<AnalyticsStatistics | null>(
+    null
+  );
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    const fetchStatistics = async () => {
+    const fetchStatistics = async (): Promise<void> => {
       try {
         const response = await apiService.getStatistics();
-        if (response.success) {
-          setStatistics(response.statistics);
+        // Note: We're casting since the actual API might not match our interface exactly
+        const typedResponse = response as any;
+        if (typedResponse.success) {
+          setStatistics(typedResponse.statistics);
         }
       } catch (error) {
         console.error("Failed to fetch statistics:", error);
@@ -79,8 +95,8 @@ const Analytics = () => {
   }
 
   // Chart configurations
-  const detectionHistoryChart = {
-    labels: statistics.detection_history.map((item) => {
+  const detectionHistoryChart: ChartData<"line"> = {
+    labels: (statistics.detection_history || []).map((item) => {
       const date = new Date(item.date);
       return date.toLocaleDateString("en-US", {
         month: "short",
@@ -90,14 +106,18 @@ const Analytics = () => {
     datasets: [
       {
         label: "Total Detections",
-        data: statistics.detection_history.map((item) => item.detections),
+        data: (statistics.detection_history || []).map(
+          (item) => item.detections || 0
+        ),
         borderColor: "rgb(59, 130, 246)",
         backgroundColor: "rgba(59, 130, 246, 0.1)",
         tension: 0.4,
       },
       {
         label: "Deepfakes Found",
-        data: statistics.detection_history.map((item) => item.deepfakes),
+        data: (statistics.detection_history || []).map(
+          (item) => item.deepfakes || 0
+        ),
         borderColor: "rgb(239, 68, 68)",
         backgroundColor: "rgba(239, 68, 68, 0.1)",
         tension: 0.4,
@@ -105,11 +125,14 @@ const Analytics = () => {
     ],
   };
 
-  const mediaTypeChart = {
+  const mediaTypeChart: ChartData<"doughnut"> = {
     labels: ["Images", "Videos"],
     datasets: [
       {
-        data: [statistics.images_processed, statistics.videos_processed],
+        data: [
+          statistics.images_processed || 0,
+          statistics.videos_processed || 0,
+        ],
         backgroundColor: ["#3B82F6", "#8B5CF6"],
         borderColor: ["#2563EB", "#7C3AED"],
         borderWidth: 2,
@@ -117,11 +140,14 @@ const Analytics = () => {
     ],
   };
 
-  const accuracyChart = {
+  const accuracyChart: ChartData<"doughnut"> = {
     labels: ["Accurate", "Inaccurate"],
     datasets: [
       {
-        data: [statistics.accuracy_rate, 100 - statistics.accuracy_rate],
+        data: [
+          statistics.accuracy_rate || 0,
+          100 - (statistics.accuracy_rate || 0),
+        ],
         backgroundColor: ["#10B981", "#EF4444"],
         borderColor: ["#059669", "#DC2626"],
         borderWidth: 2,
@@ -129,11 +155,11 @@ const Analytics = () => {
     ],
   };
 
-  const chartOptions = {
+  const chartOptions: ChartOptions<"line" | "bar"> = {
     responsive: true,
     plugins: {
       legend: {
-        position: "top",
+        position: "top" as const,
       },
     },
     scales: {
@@ -143,19 +169,19 @@ const Analytics = () => {
     },
   };
 
-  const doughnutOptions = {
+  const doughnutOptions: ChartOptions<"doughnut"> = {
     responsive: true,
     plugins: {
       legend: {
-        position: "bottom",
+        position: "bottom" as const,
       },
     },
   };
 
-  const statCards = [
+  const statCards: StatCard[] = [
     {
       title: "Total Detections",
-      value: statistics.total_detections.toLocaleString(),
+      value: (statistics.total_detections || 0).toLocaleString(),
       icon: Eye,
       color: "blue",
       change: "+12%",
@@ -163,7 +189,7 @@ const Analytics = () => {
     },
     {
       title: "Deepfakes Detected",
-      value: statistics.deepfakes_detected.toLocaleString(),
+      value: (statistics.deepfake_detections || 0).toLocaleString(),
       icon: Activity,
       color: "red",
       change: "+8%",
@@ -171,15 +197,15 @@ const Analytics = () => {
     },
     {
       title: "Accuracy Rate",
-      value: `${statistics.accuracy_rate}%`,
+      value: `${statistics.accuracy_rate || 0}%`,
       icon: TrendingUp,
       color: "green",
       change: "+1.2%",
       changeType: "positive",
     },
     {
-      title: "Avg Processing Time",
-      value: `${statistics.average_processing_time.images}s`,
+      title: "Real Content",
+      value: (statistics.real_detections || 0).toLocaleString(),
       icon: Clock,
       color: "purple",
       change: "-5%",
@@ -187,40 +213,38 @@ const Analytics = () => {
     },
   ];
 
+  const colorClasses: Record<string, string> = {
+    blue: "bg-blue-500",
+    red: "bg-red-500",
+    green: "bg-green-500",
+    purple: "bg-purple-500",
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-12"
-        >
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Analytics Dashboard
-          </h1>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Comprehensive insights into deepfake detection performance and usage
-            statistics
-          </p>
-        </motion.div>
+        <div className="text-center mb-12">
+          <motion.div
+            className="space-y-4"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <h1 className="text-4xl font-bold text-gray-900 mb-4">
+              Analytics Dashboard
+            </h1>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Comprehensive insights into deepfake detection performance and
+              usage statistics
+            </p>
+          </motion.div>
+        </div>
 
         {/* Statistics Cards */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.1 }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12"
-        >
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
           {statCards.map((stat, index) => {
             const Icon = stat.icon;
-            const colorClasses = {
-              blue: "bg-blue-500",
-              red: "bg-red-500",
-              green: "bg-green-500",
-              purple: "bg-purple-500",
-            };
 
             return (
               <div
@@ -263,31 +287,21 @@ const Analytics = () => {
               </div>
             );
           })}
-        </motion.div>
+        </div>
 
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
           {/* Detection History Chart */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="card"
-          >
+          <div className="card">
             <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
               <BarChart3 className="w-5 h-5 mr-2" />
               Detection History (Last 7 Days)
             </h2>
             <Line data={detectionHistoryChart} options={chartOptions} />
-          </motion.div>
+          </div>
 
           {/* Media Type Distribution */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-            className="card"
-          >
+          <div className="card">
             <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
               <PieChart className="w-5 h-5 mr-2" />
               Media Type Distribution
@@ -295,45 +309,35 @@ const Analytics = () => {
             <div className="h-64 flex items-center justify-center">
               <Doughnut data={mediaTypeChart} options={doughnutOptions} />
             </div>
-          </motion.div>
+          </div>
         </div>
 
         {/* Additional Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
           {/* Model Accuracy */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-            className="card"
-          >
+          <div className="card">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">
               Model Accuracy
             </h2>
             <div className="h-64 flex items-center justify-center">
               <Doughnut data={accuracyChart} options={doughnutOptions} />
             </div>
-          </motion.div>
+          </div>
 
           {/* Processing Time Comparison */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.5 }}
-            className="card"
-          >
+          <div className="card">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              Average Processing Time
+              Media Type Processed
             </h2>
             <Bar
               data={{
                 labels: ["Images", "Videos"],
                 datasets: [
                   {
-                    label: "Processing Time (seconds)",
+                    label: "Files Processed",
                     data: [
-                      statistics.average_processing_time.images,
-                      statistics.average_processing_time.videos,
+                      statistics.images_processed || 0,
+                      statistics.videos_processed || 0,
                     ],
                     backgroundColor: [
                       "rgba(59, 130, 246, 0.8)",
@@ -346,21 +350,17 @@ const Analytics = () => {
               }}
               options={chartOptions}
             />
-          </motion.div>
+          </div>
         </div>
 
         {/* Performance Metrics */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.6 }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-6"
-        >
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="card bg-gradient-to-r from-blue-500 to-blue-600 text-white">
             <h3 className="text-lg font-semibold mb-2">Detection Rate</h3>
             <p className="text-3xl font-bold">
               {(
-                (statistics.deepfakes_detected / statistics.total_detections) *
+                ((statistics.deepfake_detections || 0) /
+                  (statistics.total_detections || 1)) *
                 100
               ).toFixed(1)}
               %
@@ -372,7 +372,9 @@ const Analytics = () => {
 
           <div className="card bg-gradient-to-r from-green-500 to-green-600 text-white">
             <h3 className="text-lg font-semibold mb-2">Success Rate</h3>
-            <p className="text-3xl font-bold">{statistics.accuracy_rate}%</p>
+            <p className="text-3xl font-bold">
+              {statistics.accuracy_rate || 0}%
+            </p>
             <p className="text-green-100 text-sm mt-1">Model accuracy rate</p>
           </div>
 
@@ -380,22 +382,18 @@ const Analytics = () => {
             <h3 className="text-lg font-semibold mb-2">Total Files</h3>
             <p className="text-3xl font-bold">
               {(
-                statistics.images_processed + statistics.videos_processed
+                (statistics.images_processed || 0) +
+                (statistics.videos_processed || 0)
               ).toLocaleString()}
             </p>
             <p className="text-purple-100 text-sm mt-1">
               Images and videos processed
             </p>
           </div>
-        </motion.div>
+        </div>
 
         {/* Recent Activity Summary */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.7 }}
-          className="mt-12 card"
-        >
+        <div className="mt-12 card">
           <h2 className="text-xl font-semibold text-gray-900 mb-6">
             Recent Activity Summary
           </h2>
@@ -406,8 +404,8 @@ const Analytics = () => {
                 Today's Detections
               </h4>
               <p className="text-2xl font-bold text-blue-600">
-                {statistics.detection_history[
-                  statistics.detection_history.length - 1
+                {(statistics.detection_history || [])[
+                  (statistics.detection_history || []).length - 1
                 ]?.detections || 0}
               </p>
             </div>
@@ -417,8 +415,8 @@ const Analytics = () => {
                 Deepfakes Found Today
               </h4>
               <p className="text-2xl font-bold text-red-600">
-                {statistics.detection_history[
-                  statistics.detection_history.length - 1
+                {(statistics.detection_history || [])[
+                  (statistics.detection_history || []).length - 1
                 ]?.deepfakes || 0}
               </p>
             </div>
@@ -429,15 +427,15 @@ const Analytics = () => {
               </h4>
               <p className="text-2xl font-bold text-green-600">
                 {Math.round(
-                  statistics.detection_history.reduce(
-                    (sum, day) => sum + day.detections,
+                  (statistics.detection_history || []).reduce(
+                    (sum, day) => sum + (day.detections || 0),
                     0
-                  ) / 7
+                  ) / Math.max((statistics.detection_history || []).length, 1)
                 )}
               </p>
             </div>
           </div>
-        </motion.div>
+        </div>
       </div>
     </div>
   );

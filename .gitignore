@@ -43,6 +43,7 @@ backend/uploads/*
 models/*.pth
 models/*.h5
 models/*.pkl
+models/*.ipynb
 
 # Logs
 *.log
@@ -55,4 +56,3 @@ logs/
 # Temporary files
 *.tmp
 *.temp
-

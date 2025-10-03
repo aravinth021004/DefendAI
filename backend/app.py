@@ -5,6 +5,7 @@ import uuid
 from werkzeug.utils import secure_filename
 import logging
 from xception_deepfake_detector import XceptionDeepfakeDetector
+from vit_deepfake_detector import VisionTransformerDeepfakeDetector
 import time
 from datetime import datetime
 
@@ -24,8 +25,34 @@ app.config['ALLOWED_VIDEO_EXTENSIONS'] = {'mp4', 'avi', 'mov', 'wmv', 'flv', 'we
 # Create upload directory
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# Initialize Xception-based deepfake detection service
-detector = XceptionDeepfakeDetector(model_path='../models/xception_deepfake_image.h5')
+# Initialize both detection models
+try:
+    xception_detector = XceptionDeepfakeDetector(model_path='../models/xception_deepfake_image.h5')
+    logger.info("Xception model loaded successfully")
+except Exception as e:
+    logger.error(f"Failed to load Xception model: {e}")
+    xception_detector = None
+
+try:
+    vit_detector = VisionTransformerDeepfakeDetector(model_path='../models/deepfake_detection.pth')
+    logger.info("Vision Transformer model loaded successfully")
+except Exception as e:
+    logger.error(f"Failed to load Vision Transformer model: {e}")
+    vit_detector = None
+
+# Available models
+AVAILABLE_MODELS = {
+    'xception': {
+        'name': 'Xception',
+        'detector': xception_detector,
+        'description': 'Xception-based CNN model for deepfake detection'
+    },
+    'vit': {
+        'name': 'Vision Transformer',
+        'detector': vit_detector,
+        'description': 'Vision Transformer model for deepfake detection'
+    }
+}
 
 def allowed_file(filename, file_type='image'):
     """Check if file extension is allowed"""
@@ -64,10 +91,53 @@ def health_check():
         'version': '1.0.0'
     })
 
+def get_detector(model_type='xception'):
+    """Get the appropriate detector based on model type"""
+    if model_type not in AVAILABLE_MODELS:
+        return None
+    
+    detector = AVAILABLE_MODELS[model_type]['detector']
+    if detector is None:
+        logger.error(f"Model {model_type} is not available")
+    return detector
+
+@app.route('/api/models', methods=['GET'])
+def get_available_models():
+    """Get list of available models"""
+    try:
+        models = []
+        for key, model_info in AVAILABLE_MODELS.items():
+            models.append({
+                'id': key,
+                'name': model_info['name'],
+                'description': model_info['description'],
+                'available': model_info['detector'] is not None
+            })
+        
+        return jsonify({
+            'success': True,
+            'models': models
+        })
+    except Exception as e:
+        logger.error(f"Error getting available models: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to get available models'
+        }), 500
+
 @app.route('/api/model-info', methods=['GET'])
 def get_model_info():
-    """Get information about the loaded model"""
+    """Get information about a specific model"""
     try:
+        model_type = request.args.get('model', 'xception')
+        detector = get_detector(model_type)
+        
+        if detector is None:
+            return jsonify({
+                'success': False,
+                'error': f'Model {model_type} is not available'
+            }), 404
+        
         model_info = detector.get_model_info()
         return jsonify({
             'success': True,
@@ -106,6 +176,16 @@ def detect_deepfake_image():
                 'error': 'Invalid file type. Supported formats: PNG, JPG, JPEG, GIF, BMP'
             }), 400
         
+        # Get model type from form data
+        model_type = request.form.get('model', 'xception')
+        detector = get_detector(model_type)
+        
+        if detector is None:
+            return jsonify({
+                'success': False,
+                'error': f'Model {model_type} is not available'
+            }), 404
+        
         # Save file
         file_path = save_uploaded_file(file)
         if not file_path:
@@ -134,6 +214,7 @@ def detect_deepfake_image():
         return jsonify({
             'success': True,
             'result': result,
+            'model_used': model_type,
             'processing_time': round(processing_time, 2),
             'timestamp': datetime.now().isoformat()
         })
@@ -171,8 +252,16 @@ def detect_deepfake_video():
                 'error': 'Invalid file type. Supported formats: MP4, AVI, MOV, WMV, FLV, WEBM'
             }), 400
         
-        # Get frame interval parameter (optional)
+        # Get parameters
         frame_interval = request.form.get('frame_interval', 30, type=int)
+        model_type = request.form.get('model', 'xception')
+        detector = get_detector(model_type)
+        
+        if detector is None:
+            return jsonify({
+                'success': False,
+                'error': f'Model {model_type} is not available'
+            }), 404
         
         # Save file
         file_path = save_uploaded_file(file)
@@ -202,6 +291,7 @@ def detect_deepfake_video():
         return jsonify({
             'success': True,
             'result': result,
+            'model_used': model_type,
             'processing_time': round(processing_time, 2),
             'timestamp': datetime.now().isoformat()
         })
@@ -260,6 +350,18 @@ def batch_detect():
                 })
                 continue
             
+            # Get model type from form data
+            model_type = request.form.get('model', 'xception')
+            detector = get_detector(model_type)
+            
+            if detector is None:
+                results.append({
+                    'filename': file.filename,
+                    'success': False,
+                    'error': f'Model {model_type} is not available'
+                })
+                continue
+            
             # Detect deepfake
             start_time = time.time()
             
@@ -290,6 +392,7 @@ def batch_detect():
                     'success': True,
                     'result': result,
                     'file_type': 'image' if is_image else 'video',
+                    'model_used': model_type,
                     'processing_time': round(processing_time, 2)
                 })
         
@@ -379,10 +482,15 @@ if __name__ == '__main__':
     print("🌐 Server running on http://localhost:5000")
     print("📋 API Documentation:")
     print("   - GET  /api/health - Health check")
-    print("   - GET  /api/model-info - Model information")
+    print("   - GET  /api/models - Available models")
+    print("   - GET  /api/model-info?model=<model_type> - Model information")
     print("   - POST /api/detect-image - Detect deepfake in image")
     print("   - POST /api/detect-video - Detect deepfake in video")
     print("   - POST /api/batch-detect - Batch detection")
     print("   - GET  /api/statistics - Usage statistics")
+    print("📝 Available Models:")
+    for key, model_info in AVAILABLE_MODELS.items():
+        status = "✅ Available" if model_info['detector'] is not None else "❌ Not Available"
+        print(f"   - {key}: {model_info['name']} - {status}")
     
     app.run(debug=True, host='0.0.0.0', port=5000)
