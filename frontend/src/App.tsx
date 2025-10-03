@@ -7,7 +7,7 @@ import Detection from "./pages/Detection";
 import Analytics from "./pages/Analytics";
 import About from "./pages/About";
 
-function App() {
+function App(): React.JSX.Element {
   return (
     <Router>
       <div className="App">

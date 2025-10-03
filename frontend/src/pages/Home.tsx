@@ -3,16 +3,27 @@ import { motion } from "framer-motion";
 import { Shield, Zap, Eye, Brain, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { apiService } from "../services/api";
+import { Feature, Stat } from "../types/api";
 
-const Home = () => {
-  const [modelInfo, setModelInfo] = useState(null);
+interface ModelInfo {
+  model_type: string;
+  total_parameters: number;
+  input_size: string;
+  device: string;
+  supported_formats: string[];
+}
+
+const Home: React.FC = () => {
+  const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null);
 
   useEffect(() => {
-    const fetchModelInfo = async () => {
+    const fetchModelInfo = async (): Promise<void> => {
       try {
         const response = await apiService.getModelInfo();
-        if (response.success) {
-          setModelInfo(response.model_info);
+        // Note: We're casting the response since the API might not match our ModelInfoResponse interface exactly
+        const modelResponse = response as any;
+        if (modelResponse.success) {
+          setModelInfo(modelResponse.model_info);
         }
       } catch (error) {
         console.error("Failed to fetch model info:", error);
@@ -22,7 +33,7 @@ const Home = () => {
     fetchModelInfo();
   }, []);
 
-  const features = [
+  const features: Feature[] = [
     {
       icon: Brain,
       title: "Hybrid AI Architecture",
@@ -53,7 +64,7 @@ const Home = () => {
     },
   ];
 
-  const stats = [
+  const stats: Stat[] = [
     { label: "Detection Accuracy", value: "94.7%", color: "text-green-600" },
     { label: "Processing Speed", value: "<1s", color: "text-blue-600" },
     { label: "Supported Formats", value: "6+", color: "text-purple-600" },
@@ -66,16 +77,58 @@ const Home = () => {
     },
   ];
 
+  type ColorClasses = {
+    [key: string]: string;
+  };
+
+  const colorClasses: ColorClasses = {
+    blue: "bg-blue-100 text-blue-600",
+    purple: "bg-purple-100 text-purple-600",
+    green: "bg-green-100 text-green-600",
+    red: "bg-red-100 text-red-600",
+  };
+
+  interface HowItWorksStep {
+    step: string;
+    title: string;
+    description: string;
+    icon: string;
+  }
+
+  const howItWorksSteps: HowItWorksStep[] = [
+    {
+      step: "01",
+      title: "Upload Media",
+      description:
+        "Upload your image or video file through our secure interface",
+      icon: "📤",
+    },
+    {
+      step: "02",
+      title: "AI Analysis",
+      description:
+        "Our hybrid CNN-Transformer model analyzes spatial and temporal features",
+      icon: "🧠",
+    },
+    {
+      step: "03",
+      title: "Get Results",
+      description:
+        "Receive detailed analysis with confidence scores and explanations",
+      icon: "📊",
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       {/* Hero Section */}
       <section className="pt-20 pb-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <motion.div
+            className="text-center"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className="text-center"
           >
             <h1 className="text-5xl md:text-7xl font-bold text-gray-900 mb-6">
               Defend
@@ -107,10 +160,10 @@ const Home = () => {
 
           {/* Stats */}
           <motion.div
+            className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-16"
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-8"
           >
             {stats.map((stat, index) => (
               <div key={index} className="text-center">
@@ -132,11 +185,11 @@ const Home = () => {
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
         <div className="max-w-7xl mx-auto">
           <motion.div
+            className="text-center mb-12"
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             transition={{ duration: 0.8 }}
             viewport={{ once: true }}
-            className="text-center mb-16"
           >
             <h2 className="text-4xl font-bold text-gray-900 mb-4">
               Cutting-Edge Technology
@@ -151,21 +204,15 @@ const Home = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {features.map((feature, index) => {
               const Icon = feature.icon;
-              const colorClasses = {
-                blue: "bg-blue-100 text-blue-600",
-                purple: "bg-purple-100 text-purple-600",
-                green: "bg-green-100 text-green-600",
-                red: "bg-red-100 text-red-600",
-              };
 
               return (
                 <motion.div
                   key={index}
+                  className="card hover:shadow-lg transition-shadow duration-300"
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: index * 0.1 }}
                   viewport={{ once: true }}
-                  className="card hover:shadow-xl transition-shadow duration-300"
                 >
                   <div
                     className={`w-12 h-12 rounded-lg ${
@@ -190,11 +237,11 @@ const Home = () => {
         <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gray-50">
           <div className="max-w-7xl mx-auto">
             <motion.div
+              className="text-center mb-12"
               initial={{ opacity: 0 }}
               whileInView={{ opacity: 1 }}
               transition={{ duration: 0.8 }}
               viewport={{ once: true }}
-              className="text-center mb-12"
             >
               <h2 className="text-4xl font-bold text-gray-900 mb-4">
                 Model Specifications
@@ -259,11 +306,11 @@ const Home = () => {
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
         <div className="max-w-7xl mx-auto">
           <motion.div
+            className="text-center mb-12"
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             transition={{ duration: 0.8 }}
             viewport={{ once: true }}
-            className="text-center mb-16"
           >
             <h2 className="text-4xl font-bold text-gray-900 mb-4">
               How It Works
@@ -275,36 +322,14 @@ const Home = () => {
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              {
-                step: "01",
-                title: "Upload Media",
-                description:
-                  "Upload your image or video file through our secure interface",
-                icon: "📤",
-              },
-              {
-                step: "02",
-                title: "AI Analysis",
-                description:
-                  "Our hybrid CNN-Transformer model analyzes spatial and temporal features",
-                icon: "🧠",
-              },
-              {
-                step: "03",
-                title: "Get Results",
-                description:
-                  "Receive detailed analysis with confidence scores and explanations",
-                icon: "📊",
-              },
-            ].map((item, index) => (
+            {howItWorksSteps.map((item, index) => (
               <motion.div
                 key={index}
+                className="text-center p-6 rounded-lg hover:bg-gray-50 transition-colors duration-300"
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
                 viewport={{ once: true }}
-                className="text-center"
               >
                 <div className="text-6xl mb-4">{item.icon}</div>
                 <div className="text-sm font-medium text-primary-600 mb-2">
@@ -324,6 +349,7 @@ const Home = () => {
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-primary-600">
         <div className="max-w-4xl mx-auto text-center">
           <motion.div
+            className="space-y-6"
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             transition={{ duration: 0.8 }}
