@@ -223,7 +223,7 @@ const About: React.FC = () => {
         </div>
       </section>
 
-      {/* Team
+      {/* Team Section */}
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
@@ -262,7 +262,7 @@ const About: React.FC = () => {
             ))}
           </div>
         </div>
-      </section> */}
+      </section>
 
       {/* Contact */}
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-blue-600 to-purple-700 text-white">

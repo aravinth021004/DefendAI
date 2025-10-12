@@ -8,10 +8,14 @@ import {
   BatchDetectionResult,
   Statistics,
   ApiService,
+  ChatbotResponse,
 } from "../types/api";
 
 const API_BASE_URL: string =
   process.env.REACT_APP_API_URL || "http://localhost:5000/api";
+
+const CHATBOT_BASE_URL: string =
+  process.env.REACT_APP_CHATBOT_URL || "http://localhost:8000";
 
 // Create axios instance with default config
 const api: AxiosInstance = axios.create({
@@ -140,6 +144,45 @@ export const apiService: ApiService = {
     const response = await api.get<Statistics>("/statistics");
     return response.data;
   },
+
+  // Chatbot conversation - connects to optimized chatbot server
+  sendChatMessage: async (message: string): Promise<ChatbotResponse> => {
+    try {
+      const chatbotApi = axios.create({
+        baseURL: CHATBOT_BASE_URL,
+        timeout: 30000, // 30 seconds for chatbot responses
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const response = await chatbotApi.post("/chat", {
+        query: message,
+        include_sources: true,
+      });
+
+      // Transform the response to match expected ChatbotResponse format
+      return {
+        success: true,
+        response: response.data.response,
+        timestamp: response.data.timestamp,
+        thread_id: response.data.thread_id || "default",
+        sources: response.data.sources || [],
+        news_context: response.data.news_context,
+      };
+    } catch (error: any) {
+      console.error("Chatbot API error:", error);
+
+      // Return error response in expected format
+      return {
+        success: false,
+        response: "Sorry, I'm currently unavailable. Please try again later.",
+        timestamp: new Date().toISOString(),
+        thread_id: "default",
+        error: error.message || "Connection failed",
+      };
+    }
+  },
 };
 
-export default api;
+export default apiService;

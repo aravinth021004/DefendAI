@@ -102,6 +102,7 @@ export interface ApiService {
   ): Promise<VideoDetectionResult>;
   batchDetect(files: File[], modelType?: string): Promise<BatchDetectionResult>;
   getStatistics(): Promise<Statistics>;
+  sendChatMessage(message: string): Promise<ChatbotResponse>;
 }
 
 // Component Props Types
@@ -194,4 +195,29 @@ export interface AnalyticsStatistics {
 export interface StatisticsResponse {
   success: boolean;
   statistics: AnalyticsStatistics;
+}
+
+// Chatbot Types
+export interface ChatMessage {
+  id: string;
+  message: string;
+  isUser: boolean;
+  timestamp: string;
+}
+
+export interface ChatbotSource {
+  id: string;
+  title: string;
+  type: string;
+  content: string;
+}
+
+export interface ChatbotResponse {
+  success: boolean;
+  response: string;
+  timestamp: string;
+  thread_id?: string;
+  sources?: ChatbotSource[];
+  news_context?: string;
+  error?: string;
 }

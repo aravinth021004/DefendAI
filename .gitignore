@@ -49,6 +49,12 @@ models/*.ipynb
 *.log
 logs/
 
+# Chatbot generated files (keep training data, exclude generated files)
+# backend/chatbot/defendai_vectorstore/
+# backend/chatbot/data_hash.txt
+backend/chatbot/__pycache__/
+# backend/chatbot/chatbot_training_data.json
+
 # Database
 *.db
 *.sqlite3
