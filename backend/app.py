@@ -4,14 +4,31 @@ import os
 import uuid
 from werkzeug.utils import secure_filename
 import logging
-from xception_deepfake_detector import XceptionDeepfakeDetector
-from vit_deepfake_detector import VisionTransformerDeepfakeDetector
 import time
 from datetime import datetime
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Optional imports for ML models (for chatbot-only testing)
+try:
+    from xception_deepfake_detector import XceptionDeepfakeDetector
+    XCEPTION_AVAILABLE = True
+    logger.info("Xception detector import successful")
+except ImportError as e:
+    logger.warning(f"Xception detector not available: {e}")
+    XceptionDeepfakeDetector = None
+    XCEPTION_AVAILABLE = False
+
+try:
+    from vit_deepfake_detector import VisionTransformerDeepfakeDetector
+    VIT_AVAILABLE = True
+    logger.info("VIT detector import successful")
+except ImportError as e:
+    logger.warning(f"VIT detector not available: {e}")
+    VisionTransformerDeepfakeDetector = None
+    VIT_AVAILABLE = False
 
 app = Flask(__name__)
 CORS(app)
@@ -25,20 +42,25 @@ app.config['ALLOWED_VIDEO_EXTENSIONS'] = {'mp4', 'avi', 'mov', 'wmv', 'flv', 'we
 # Create upload directory
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# Initialize both detection models
-try:
-    xception_detector = XceptionDeepfakeDetector(model_path='../models/xception_deepfake_image.h5')
-    logger.info("Xception model loaded successfully")
-except Exception as e:
-    logger.error(f"Failed to load Xception model: {e}")
-    xception_detector = None
+# Initialize detection models (optional for chatbot testing)
+xception_detector = None
+vit_detector = None
 
-try:
-    vit_detector = VisionTransformerDeepfakeDetector(model_path='../models/deepfake_detection.pth')
-    logger.info("Vision Transformer model loaded successfully")
-except Exception as e:
-    logger.error(f"Failed to load Vision Transformer model: {e}")
-    vit_detector = None
+if XCEPTION_AVAILABLE and XceptionDeepfakeDetector:
+    try:
+        xception_detector = XceptionDeepfakeDetector(model_path='../models/xception_deepfake_image.h5')
+        logger.info("Xception model loaded successfully")
+    except Exception as e:
+        logger.error(f"Failed to load Xception model: {e}")
+        xception_detector = None
+
+if VIT_AVAILABLE and VisionTransformerDeepfakeDetector:
+    try:
+        vit_detector = VisionTransformerDeepfakeDetector(model_path='../models/deepfake_detection.pth')
+        logger.info("Vision Transformer model loaded successfully")
+    except Exception as e:
+        logger.error(f"Failed to load Vision Transformer model: {e}")
+        vit_detector = None
 
 # Available models
 AVAILABLE_MODELS = {
@@ -472,6 +494,9 @@ def internal_error(e):
         'error': 'Internal server error'
     }), 500
 
+# Chatbot functionality has been moved to a dedicated optimized server
+# See backend/chatbot/optimized_chatbot_server.py for chatbot endpoints
+
 if __name__ == '__main__':
     # Create uploads directory
     os.makedirs('uploads', exist_ok=True)
@@ -488,6 +513,7 @@ if __name__ == '__main__':
     print("   - POST /api/detect-video - Detect deepfake in video")
     print("   - POST /api/batch-detect - Batch detection")
     print("   - GET  /api/statistics - Usage statistics")
+    print("🤖 Chatbot: Separate optimized server on http://localhost:8000")
     print("📝 Available Models:")
     for key, model_info in AVAILABLE_MODELS.items():
         status = "✅ Available" if model_info['detector'] is not None else "❌ Not Available"

@@ -12,3 +12,21 @@ Werkzeug>=3.1.3
 python-multipart>=0.0.20
 lime>=0.2.0.1
 tqdm>=4.67.1
+langgraph
+langchain
+langsmith
+python-dotenv
+langchain_groq
+langchain_tavily
+langchain_google_genai
+langgraph-cli[inmem]
+langchain_community
+chromadb 
+beautifulsoup4
+sentence-transformers
+tf-keras
+# Search tools
+tavily-python
+
+# Additional utilities
+typing-extensions

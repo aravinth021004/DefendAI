@@ -156,3 +156,61 @@
   /* Fallback for browsers that don't support background-clip: text */
   color: #667eea;
 }
+
+/* Chatbot specific styles */
+.chatbot-header {
+  user-select: none;
+}
+
+.chatbot-header:active {
+  cursor: grabbing;
+}
+
+/* Enhanced scrollbar for chatbot */
+.chatbot-scrollarea::-webkit-scrollbar {
+  width: 4px;
+}
+
+.chatbot-scrollarea::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chatbot-scrollarea::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 2px;
+}
+
+.chatbot-scrollarea::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Animation keyframes */
+@keyframes slideInFromBottom {
+  from {
+    transform: translateY(100%) scale(0.8);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutToBottom {
+  from {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(100%) scale(0.8);
+    opacity: 0;
+  }
+}
+
+.animate-slide-in {
+  animation: slideInFromBottom 0.3s ease-out;
+}
+
+.animate-slide-out {
+  animation: slideOutToBottom 0.3s ease-in;
+}
